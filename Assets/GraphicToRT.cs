@@ -1,4 +1,4 @@
-﻿using System.Linq;
+﻿using System;
 using UnityEngine;
 using UnityEngine.Assertions;
 using UnityEngine.UI;
@@ -79,16 +79,24 @@ public class GraphicToRT : MonoBehaviour {
     }
 
     void UpdateRT() {
-        if (_rt && _graphic.canvas) {
-            var prevMode = _graphic.canvas.renderMode;
-            _graphic.canvas.renderMode = RenderMode.WorldSpace;
-            _camera.orthographicSize = _graphicSize.y / 2;
-            _camera.aspect = _graphicSize.x / _graphicSize.y;
-            _camera.transform.position = _graphicCenter - _graphicNormal * _camera.nearClipPlane * 2f;
-            _camera.transform.rotation = _graphicRotation;
-            _camera.targetTexture = _rt;
-            _camera.Render();
-            _graphic.canvas.renderMode = prevMode;
+        if (_rt && _graphic.canvas)
+            WithRenderMode(_graphic.canvas, RenderMode.WorldSpace, () => {
+                _camera.orthographicSize = _graphicSize.y / 2;
+                _camera.aspect = _graphicSize.x / _graphicSize.y;
+                _camera.transform.position = _graphicCenter - _graphicNormal * _camera.nearClipPlane * 2f;
+                _camera.transform.rotation = _graphicRotation;
+                _camera.targetTexture = _rt;
+                _camera.Render();
+            });
+    }
+
+    static void WithRenderMode(Canvas canvas, RenderMode renderMode, Action f) {
+        var prevMode = canvas.renderMode;
+        canvas.renderMode = renderMode;
+        try {
+            f();
+        } finally {
+            canvas.renderMode = prevMode;
         }
     }
 }
