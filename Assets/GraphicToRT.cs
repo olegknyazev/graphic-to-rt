@@ -7,10 +7,15 @@ using Conditional = System.Diagnostics.ConditionalAttribute;
 [ExecuteInEditMode]
 [RequireComponent(typeof(Graphic))]
 public class GraphicToRT : MonoBehaviour {
+    public int layer = 31;
+
     Graphic _graphic;
     RectTransform _rectTransform;
     RenderTexture _rt;
     Camera _camera;
+    GraphicRaycaster _originalRaycaster;
+    Canvas _localCanvas;
+    GraphicRaycaster _localRaycaster;
 
     // in world space
     Vector2 _graphicSize;
@@ -33,6 +38,7 @@ public class GraphicToRT : MonoBehaviour {
     }
 
     public void Update() {
+        UpdateLocalCanvas();
         UpdateGraphicMetrics();
         UpdateRTSize();
         UpdateRT();
@@ -53,6 +59,19 @@ public class GraphicToRT : MonoBehaviour {
         camera.backgroundColor = Color.clear;
         camera.orthographic = true;
         return camera;
+    }
+
+    void UpdateLocalCanvas() {
+        if (!_localCanvas)
+            _localCanvas = GetOrCreateComponent<Canvas>(this);
+        if (!_originalRaycaster)
+            _originalRaycaster = _localCanvas.rootCanvas.GetComponent<GraphicRaycaster>();
+        if (_originalRaycaster) {
+            if (!_localRaycaster)
+                _localRaycaster = GetOrCreateComponent<GraphicRaycaster>(_graphic);
+            _localRaycaster.blockingObjects = _originalRaycaster.blockingObjects;
+            _localRaycaster.ignoreReversedGraphics = _originalRaycaster.ignoreReversedGraphics;
+        }
     }
 
     void UpdateGraphicMetrics() {
@@ -79,15 +98,18 @@ public class GraphicToRT : MonoBehaviour {
     }
 
     void UpdateRT() {
-        if (_rt && _graphic.canvas)
-            WithRenderMode(_graphic.canvas, RenderMode.WorldSpace, () => {
-                _camera.orthographicSize = _graphicSize.y / 2;
-                _camera.aspect = _graphicSize.x / _graphicSize.y;
-                _camera.transform.position = _graphicCenter - _graphicNormal * _camera.nearClipPlane * 2f;
-                _camera.transform.rotation = _graphicRotation;
-                _camera.targetTexture = _rt;
-                _camera.Render();
-            });
+        if (_rt && _localCanvas.rootCanvas) {
+            WithRenderMode(_localCanvas.rootCanvas, RenderMode.WorldSpace, () =>
+                WithObjectLayer(_graphic.gameObject, layer, () => {
+                    _camera.orthographicSize = _graphicSize.y / 2;
+                    _camera.aspect = _graphicSize.x / _graphicSize.y;
+                    _camera.transform.position = _graphicCenter - _graphicNormal * _camera.nearClipPlane * 2f;
+                    _camera.transform.rotation = _graphicRotation;
+                    _camera.targetTexture = _rt;
+                    _camera.cullingMask = 1 << layer;
+                    _camera.Render();
+                }));
+        }
     }
 
     static void WithRenderMode(Canvas canvas, RenderMode renderMode, Action f) {
@@ -98,5 +120,20 @@ public class GraphicToRT : MonoBehaviour {
         } finally {
             canvas.renderMode = prevMode;
         }
+    }
+
+    static void WithObjectLayer(GameObject obj, int layer, Action f) {
+        var prevLayer = obj.layer;
+        obj.layer = layer;
+        try {
+            f();
+        } finally {
+            obj.layer = prevLayer;
+        }
+    }
+
+    static T GetOrCreateComponent<T>(Component c) where T : Component {
+        var existing = c.GetComponent<T>();
+        return existing ? existing : c.gameObject.AddComponent<T>();
     }
 }
