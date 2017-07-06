@@ -23,6 +23,19 @@ namespace UIToRenderTarget {
             }
         }
 
+        public static void WithoutScaleAndRotation(Transform transform, Action f) {
+            var prevScale = transform.localScale;
+            var prevRotation = transform.localRotation;
+            transform.localScale = Vector3.one;
+            transform.localRotation = Quaternion.identity;
+            try {
+                f();
+            } finally {
+                transform.localScale = prevScale;
+                transform.localRotation = prevRotation;
+            }
+        }
+
         public static T GetOrCreateComponent<T>(this Component c) where T : Component {
             var existing = c.GetComponent<T>();
             return existing ? existing : c.gameObject.AddComponent<T>();

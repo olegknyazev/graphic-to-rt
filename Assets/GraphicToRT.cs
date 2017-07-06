@@ -39,9 +39,11 @@ namespace UIToRenderTarget {
 
         public void Update() {
             UpdateLocalCanvas();
-            UpdateGraphicMetrics();
-            UpdateRTSize();
-            UpdateRT();
+            Utils.WithoutScaleAndRotation(_graphic.transform, () => {
+                UpdateGraphicMetrics();
+                UpdateRTSize();
+                UpdateRT();
+            });
         }
 
         [Conditional("UNITY_EDITOR")]
@@ -99,7 +101,8 @@ namespace UIToRenderTarget {
 
         void UpdateRT() {
             if (_rt && _localCanvas.rootCanvas) {
-                Utils.WithRenderMode(_localCanvas.rootCanvas, RenderMode.WorldSpace, () => Utils.WithObjectLayer(_graphic.gameObject, layer, () => {
+                Utils.WithRenderMode(_localCanvas.rootCanvas, RenderMode.WorldSpace, () => 
+                Utils.WithObjectLayer(_graphic.gameObject, layer, () => {
                     _camera.orthographicSize = _graphicSize.y / 2;
                     _camera.aspect = _graphicSize.x / _graphicSize.y;
                     _camera.transform.position = _graphicCenter - _graphicNormal * _camera.nearClipPlane * 2f;
