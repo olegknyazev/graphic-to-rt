@@ -70,12 +70,10 @@ namespace UIToRenderTarget {
         }
 
         void UpdateRTSize() {
-            var desiredWidth = (int)_metrics.width;
-            var desiredHeight = (int)_metrics.height;
-            if (!_rt || _rt.width != desiredWidth || _rt.height != desiredHeight) {
+            if (!_rt || _rt.width != _metrics.width || _rt.height != _metrics.height) {
                 if (_rt)
                     DestroyImmediate(_rt);
-                _rt = new RenderTexture(desiredWidth, desiredHeight, 0, RenderTextureFormat.ARGB32) {
+                _rt = new RenderTexture(_metrics.width, _metrics.height, 0, RenderTextureFormat.ARGB32) {
                     hideFlags = HideFlags.HideAndDontSave
                 };
             }
@@ -99,23 +97,37 @@ namespace UIToRenderTarget {
         }
         
         class ImposterMetrics {
-            readonly RectTransform _rectTransform;
+            static readonly Rect INVALID_RECT = new Rect(float.NaN, float.NaN, float.NaN, float.NaN);
+
+            readonly RectTransform _transform;
+
+            Rect _rect;
+            int _width;
+            int _height;
+            Rect _actualForSourceRect = INVALID_RECT;
 
             public ImposterMetrics(RectTransform transform) {
-                _rectTransform = transform;
+                _transform = transform;
             }
 
-            public Rect sourceRect { get { return _rectTransform.rect; } }
-            
-            public Quaternion rotation { get { return _rectTransform.rotation; } }
-            public Vector3 normal { get { return _rectTransform.forward; } }
-            public Vector3 center { get { return _rectTransform.TransformPoint(rect.center); } }
+            public Rect sourceRect { get { return _transform.rect; } }
 
-            public Rect rect { get { return sourceRect.SnappedToPixels(); } }
-            public int width { get { return (int)rect.width; } }
-            public int height { get { return (int)rect.height; } }
+            public Quaternion rotation { get { return _transform.rotation; } }
+            public Vector3 normal { get { return _transform.forward; } }
+            public Vector3 center { get { return _transform.TransformPoint(rect.center); } }
 
-            // TODO cache
+            public Rect rect { get { RecalculateIfNeeded(); return _rect; } }
+            public int width { get { RecalculateIfNeeded(); return _width; } }
+            public int height { get { RecalculateIfNeeded(); return _height; } }
+
+            void RecalculateIfNeeded() {
+                if (_actualForSourceRect != sourceRect) {
+                    _rect = sourceRect.SnappedToPixels();
+                    _width = (int)_rect.width;
+                    _height = (int)_rect.height;
+                    _actualForSourceRect = sourceRect;
+                }
+            }
         }
     }
 }
