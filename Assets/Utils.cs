@@ -40,5 +40,13 @@ namespace UIToRenderTarget {
             var existing = c.GetComponent<T>();
             return existing ? existing : c.gameObject.AddComponent<T>();
         }
+
+        public static Rect SnappedToPixels(this Rect r) {
+            r.xMin = Mathf.Floor(r.xMin);
+            r.yMin = Mathf.Floor(r.yMin);
+            r.xMax = Mathf.Ceil(r.xMax);
+            r.yMax = Mathf.Ceil(r.yMax);
+            return r;
+        }
     }
 }
