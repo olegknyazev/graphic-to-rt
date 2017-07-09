@@ -10,6 +10,7 @@ namespace UIToRenderTarget {
         
         RectTransform _rectTransform;
         Material _material;
+        DrivenRectTransformTracker _tracker;
 
         GraphicToRT _appliedSource;
         Shader _appliedShader;
@@ -41,15 +42,19 @@ namespace UIToRenderTarget {
         protected override void OnEnable() {
             _rectTransform = GetComponent<RectTransform>();
             Assert.IsNotNull(_rectTransform);
+            _tracker.Clear();
+            _tracker.Add(this, _rectTransform, DrivenTransformProperties.SizeDelta);
             ApplyShader();
             ApplySource();
             ApplyTexture();
             ApplyMaterial();
+            ApplySize();
             base.OnEnable();
         }
 
         protected override void OnDisable() {
             DestroyMaterial();
+            _tracker.Clear();
             base.OnDisable();
         }
 
@@ -82,6 +87,7 @@ namespace UIToRenderTarget {
             Assert.IsNotNull(graphicToRT);
             Assert.AreEqual(_source, graphicToRT);
             ApplyTexture();
+            ApplySize();
         }
 
         void ApplySource() {
@@ -97,6 +103,7 @@ namespace UIToRenderTarget {
                 }
                 ApplyMaterialProperties();
                 ApplyTexture();
+                ApplySize();
             }
         }
 
@@ -118,6 +125,11 @@ namespace UIToRenderTarget {
 
         void ApplyTexture() {
             SetMaterialDirty();
+        }
+
+        void ApplySize() {
+            if (_source)
+                _rectTransform.sizeDelta = _source.rectTranform.sizeDelta;
         }
 
         void ApplyMaterialProperties() {
