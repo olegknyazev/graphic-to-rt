@@ -18,6 +18,9 @@ namespace UIToRenderTarget {
         GraphicRaycaster _localRaycaster;
         ImposterMetrics _metrics;
 
+        public Texture texture { get { return _rt; } }
+        public RectTransform rectTranform { get { return _rectTransform; } }
+
         public void OnEnable() {
             _graphic = GetComponent<Graphic>();
             _rectTransform = GetComponent<RectTransform>();
@@ -83,7 +86,7 @@ namespace UIToRenderTarget {
             if (_rt && _localCanvas.rootCanvas) {
                 Assert.AreEqual(_metrics.width, _rt.width);
                 Assert.AreEqual(_metrics.height, _rt.height);
-                Utils.WithRenderMode(_localCanvas.rootCanvas, RenderMode.WorldSpace, () => 
+                Utils.WithRenderMode(_localCanvas.rootCanvas, RenderMode.WorldSpace, () =>
                 Utils.WithObjectLayer(_graphic.gameObject, layer, () => {
                     _camera.orthographicSize = _metrics.height / 2f;
                     _camera.aspect = _metrics.width / (float)_metrics.height;
@@ -95,7 +98,7 @@ namespace UIToRenderTarget {
                 }));
             }
         }
-        
+
         class ImposterMetrics {
             static readonly Rect INVALID_RECT = new Rect(float.NaN, float.NaN, float.NaN, float.NaN);
 
