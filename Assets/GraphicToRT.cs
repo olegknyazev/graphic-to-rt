@@ -12,7 +12,7 @@ namespace UIToRenderTarget {
         public Shader fixupAlphaShader;
         public bool fixupAlpha = true;
 
-        public Texture texture { get { return _rt; } }
+        public Texture texture { get { return _rt; } } // TODO update texture on request?
         public RectTransform rectTranform { get { return _rectTransform; } }
 
         public event Action<GraphicToRT> fixupAlphaChanged;

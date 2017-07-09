@@ -1,17 +1,13 @@
-﻿using ConditionalAttribute = System.Diagnostics.ConditionalAttribute;
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.Assertions;
 using UnityEngine.UI;
 
 namespace UIToRenderTarget {
     [ExecuteInEditMode]
-    [RequireComponent(typeof(RawImage))]
-    [RequireComponent(typeof(RectTransform))]
-    public class Imposter : MonoBehaviour {
+    public class Imposter : Graphic {
         [SerializeField] GraphicToRT _source;
         [SerializeField] Shader _shader;
         
-        RawImage _image; // TODO get rid of RawImage
         RectTransform _rectTransform;
         Material _material;
 
@@ -38,25 +34,42 @@ namespace UIToRenderTarget {
             }
         }
 
-        public void OnEnable() {
-            _image = GetComponent<RawImage>();
+        public override Texture mainTexture {
+            get { return _source ? _source.texture : base.mainTexture; }
+        }
+
+        protected override void OnEnable() {
             _rectTransform = GetComponent<RectTransform>();
-            Assert.IsNotNull(_image);
             Assert.IsNotNull(_rectTransform);
             ApplyShader();
             ApplySource();
             ApplyTexture();
             ApplyMaterial();
+            base.OnEnable();
         }
 
-        public void OnDisable() {
+        protected override void OnDisable() {
             DestroyMaterial();
+            base.OnDisable();
         }
 
-        [Conditional("UNITY_EDITOR")]
-        public void OnValidate() {
+#if UNITY_EDITOR
+        protected override void OnValidate() {
+            base.OnValidate();
             ApplyShader();
             ApplySource();
+        }
+#endif
+
+        protected override void OnPopulateMesh(VertexHelper vh) {
+            var rect = GetPixelAdjustedRect();
+            vh.Clear();
+            vh.AddVert(rect.xMin, rect.yMin, 0, 0);
+            vh.AddVert(rect.xMin, rect.yMax, 0, 1);
+            vh.AddVert(rect.xMax, rect.yMax, 1, 1);
+            vh.AddVert(rect.xMax, rect.yMin, 1, 0);
+            vh.AddTriangle(0, 1, 2);
+            vh.AddTriangle(0, 2, 3);
         }
 
         void OnFixupApplyChanged(GraphicToRT graphicToRT) {
@@ -100,13 +113,11 @@ namespace UIToRenderTarget {
         }
 
         void ApplyMaterial() {
-            if (_image)
-                _image.material = _material;
+            material = _material;
         }
 
         void ApplyTexture() {
-            if (_image && _source)
-                _image.texture = _source.texture;
+            SetMaterialDirty();
         }
 
         void ApplyMaterialProperties() {
@@ -120,6 +131,7 @@ namespace UIToRenderTarget {
         void DestroyMaterial() {
             DestroyImmediate(_material);
             _material = null;
+            material = null;
         }
 
         static class Ids {
