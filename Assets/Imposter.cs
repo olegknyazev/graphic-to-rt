@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using ConditionalAttribute = System.Diagnostics.ConditionalAttribute;
+using UnityEngine;
 using UnityEngine.Assertions;
 using UnityEngine.UI;
 
@@ -7,43 +8,118 @@ namespace UIToRenderTarget {
     [RequireComponent(typeof(RawImage))]
     [RequireComponent(typeof(RectTransform))]
     public class Imposter : MonoBehaviour {
-        public GraphicToRT source;
-        public Shader shader;
+        [SerializeField] GraphicToRT _source;
+        [SerializeField] Shader _shader;
         
-        RawImage _image;
+        RawImage _image; // TODO get rid of RawImage
         RectTransform _rectTransform;
         Material _material;
+
+        GraphicToRT _appliedSource;
+        Shader _appliedShader;
+
+        public GraphicToRT source {
+            get { return _source; }
+            set {
+                if (_source != value) {
+                    _source = value;
+                    ApplySource();
+                }
+            }
+        }
+
+        public Shader shader {
+            get { return _shader; }
+            set {
+                if (_shader != value) {
+                    _shader = value;
+                    ApplyShader();
+                }
+            }
+        }
 
         public void OnEnable() {
             _image = GetComponent<RawImage>();
             _rectTransform = GetComponent<RectTransform>();
             Assert.IsNotNull(_image);
             Assert.IsNotNull(_rectTransform);
-            if (source)
-                source.fixupAlphaChanged += _ => ApplyMaterialProperties();
-            if (shader) {
-                _material = new Material(shader) { hideFlags = HideFlags.HideAndDontSave };
+            ApplyShader();
+            ApplySource();
+            ApplyTexture();
+            ApplyMaterial();
+        }
+
+        public void OnDisable() {
+            DestroyMaterial();
+        }
+
+        [Conditional("UNITY_EDITOR")]
+        public void OnValidate() {
+            ApplyShader();
+            ApplySource();
+        }
+
+        void OnFixupApplyChanged(GraphicToRT graphicToRT) {
+            Assert.IsNotNull(graphicToRT);
+            Assert.AreEqual(_source, graphicToRT);
+            ApplyMaterialProperties();
+        }
+
+        void OnTextureChanged(GraphicToRT graphicToRT) {
+            Assert.IsNotNull(graphicToRT);
+            Assert.AreEqual(_source, graphicToRT);
+            ApplyTexture();
+        }
+
+        void ApplySource() {
+            if (_appliedSource != _source) {
+                if (_appliedSource) {
+                    _appliedSource.fixupAlphaChanged -= OnFixupApplyChanged;
+                    _appliedSource.textureChanged -= OnTextureChanged;
+                }
+                _appliedSource = _source;
+                if (_appliedSource) {
+                    _appliedSource.fixupAlphaChanged += OnFixupApplyChanged;
+                    _appliedSource.textureChanged += OnTextureChanged;
+                }
                 ApplyMaterialProperties();
-                _image.material = _material;
+                ApplyTexture();
             }
         }
 
-        public void Update() {
-            if (source) {
-                _image.texture = source.texture;
-                //_rectTransform.pivot = source.rectTranform.pivot;
-                //_rectTransform.sizeDelta = source.rectTranform.sizeDelta;
+        void ApplyShader() {
+            if (_appliedShader != _shader) {
+                if (_material)
+                    DestroyMaterial();
+                _appliedShader = _shader;
+                if (_shader)
+                    _material = new Material(_shader) { hideFlags = HideFlags.HideAndDontSave };
+                ApplyMaterial();
+                ApplyMaterialProperties();
             }
+        }
+
+        void ApplyMaterial() {
+            if (_image)
+                _image.material = _material;
+        }
+
+        void ApplyTexture() {
+            if (_image && _source)
+                _image.texture = _source.texture;
         }
 
         void ApplyMaterialProperties() {
-            if (_material) {
-                if (source)
-                    if (source.fixupAlpha) // GraphicToRT already fixed it
-                        _material.DisableKeyword(Ids.FIX_ALPHA);
-                    else
-                        _material.EnableKeyword(Ids.FIX_ALPHA);
-            }
+            if (_material && _source)
+                if (_source.fixupAlpha) // GraphicToRT already fixed channels
+                    _material.DisableKeyword(Ids.FIX_ALPHA);
+                else
+                    _material.EnableKeyword(Ids.FIX_ALPHA);
+        }
+        
+        void DestroyMaterial() {
+            DestroyImmediate(_material);
+            _material = null;
         }
 
         static class Ids {

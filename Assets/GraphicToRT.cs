@@ -1,28 +1,22 @@
 ﻿using System;
+using Conditional = System.Diagnostics.ConditionalAttribute;
 using UnityEngine;
 using UnityEngine.Assertions;
 using UnityEngine.UI;
-using Conditional = System.Diagnostics.ConditionalAttribute;
 
 namespace UIToRenderTarget {
     [ExecuteInEditMode]
     [RequireComponent(typeof(Graphic))]
     public class GraphicToRT : MonoBehaviour {
-        // TODO encapsulate too
         public int layer = 31;
         public Shader fixupAlphaShader;
-        
-        public bool fixupAlpha {
-            get { return _fixupAlpha; }
-            set { _fixupAlpha = value; }
-        }
+        public bool fixupAlpha = true;
 
         public Texture texture { get { return _rt; } }
         public RectTransform rectTranform { get { return _rectTransform; } }
 
         public event Action<GraphicToRT> fixupAlphaChanged;
-
-        [SerializeField] bool _fixupAlpha = true;
+        public event Action<GraphicToRT> textureChanged;
 
         Graphic _graphic;
         RectTransform _rectTransform;
@@ -34,6 +28,7 @@ namespace UIToRenderTarget {
         ImposterMetrics _metrics;
 
         bool _appliedFixupAlpha = false;
+        Shader _appliedFixupAlphaShader = null;
 
         public void OnEnable() {
             _graphic = GetComponent<Graphic>();
@@ -51,10 +46,9 @@ namespace UIToRenderTarget {
         }
 
         public void Update() {
-            if (_fixupAlpha != _appliedFixupAlpha) {
+            if (fixupAlpha != _appliedFixupAlpha || fixupAlphaShader != _appliedFixupAlphaShader) {
                 ApplyFixupAlpha();
                 fixupAlphaChanged.InvokeSafe(this);
-                _appliedFixupAlpha = _fixupAlpha;
             }
             UpdateLocalCanvas();
             Utils.WithoutScaleAndRotation(_graphic.transform, () => {
@@ -82,13 +76,16 @@ namespace UIToRenderTarget {
 
         void ApplyFixupAlpha() {
             var effect = _camera.GetComponent<FixupAlphaEffect>();
-            if (effect && !_fixupAlpha)
+            if (effect && !fixupAlpha)
                 DestroyImmediate(effect);
-            else if (!effect && _fixupAlpha) {
+            else if (!effect && fixupAlpha)
                 effect = _camera.gameObject.AddComponent<FixupAlphaEffect>();
+            if (effect) {
                 effect.shader = fixupAlphaShader;
-                effect.enabled = true;
+                effect.enabled = true; // it might be disabled before if shader wasn't set
             }
+            _appliedFixupAlpha = fixupAlpha;
+            _appliedFixupAlphaShader = fixupAlphaShader;
         }
 
         void UpdateLocalCanvas() {
@@ -111,6 +108,7 @@ namespace UIToRenderTarget {
                 _rt = new RenderTexture(_metrics.width, _metrics.height, 0, RenderTextureFormat.ARGB32) {
                     hideFlags = HideFlags.HideAndDontSave
                 };
+                textureChanged.InvokeSafe(this);
             }
         }
 
