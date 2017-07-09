@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 using UnityEngine.Assertions;
 using UnityEngine.UI;
 using Conditional = System.Diagnostics.ConditionalAttribute;
@@ -7,7 +8,21 @@ namespace UIToRenderTarget {
     [ExecuteInEditMode]
     [RequireComponent(typeof(Graphic))]
     public class GraphicToRT : MonoBehaviour {
+        // TODO encapsulate too
         public int layer = 31;
+        public Shader fixupAlphaShader;
+        
+        public bool fixupAlpha {
+            get { return _fixupAlpha; }
+            set { _fixupAlpha = value; }
+        }
+
+        public Texture texture { get { return _rt; } }
+        public RectTransform rectTranform { get { return _rectTransform; } }
+
+        public event Action<GraphicToRT> fixupAlphaChanged;
+
+        [SerializeField] bool _fixupAlpha = true;
 
         Graphic _graphic;
         RectTransform _rectTransform;
@@ -18,15 +33,16 @@ namespace UIToRenderTarget {
         GraphicRaycaster _localRaycaster;
         ImposterMetrics _metrics;
 
-        public Texture texture { get { return _rt; } }
-        public RectTransform rectTranform { get { return _rectTransform; } }
+        bool _appliedFixupAlpha = false;
 
         public void OnEnable() {
             _graphic = GetComponent<Graphic>();
             _rectTransform = GetComponent<RectTransform>();
+            Assert.IsNotNull(_graphic);
+            Assert.IsNotNull(_rectTransform);
             _camera = CreateCamera();
             _metrics = new ImposterMetrics(_rectTransform);
-            Assert.IsNotNull(_graphic);
+            ApplyFixupAlpha();
         }
 
         public void OnDisable() {
@@ -35,6 +51,11 @@ namespace UIToRenderTarget {
         }
 
         public void Update() {
+            if (_fixupAlpha != _appliedFixupAlpha) {
+                ApplyFixupAlpha();
+                fixupAlphaChanged.InvokeSafe(this);
+                _appliedFixupAlpha = _fixupAlpha;
+            }
             UpdateLocalCanvas();
             Utils.WithoutScaleAndRotation(_graphic.transform, () => {
                 UpdateRTSize();
@@ -57,6 +78,17 @@ namespace UIToRenderTarget {
             camera.backgroundColor = Color.clear;
             camera.orthographic = true;
             return camera;
+        }
+
+        void ApplyFixupAlpha() {
+            var effect = _camera.GetComponent<FixupAlphaEffect>();
+            if (effect && !_fixupAlpha)
+                DestroyImmediate(effect);
+            else if (!effect && _fixupAlpha) {
+                effect = _camera.gameObject.AddComponent<FixupAlphaEffect>();
+                effect.shader = fixupAlphaShader;
+                effect.enabled = true;
+            }
         }
 
         void UpdateLocalCanvas() {
@@ -107,7 +139,7 @@ namespace UIToRenderTarget {
             Rect _rect;
             int _width;
             int _height;
-            Rect _actualForSourceRect = INVALID_RECT;
+            Rect _appliedSourceRect = INVALID_RECT;
 
             public ImposterMetrics(RectTransform transform) {
                 _transform = transform;
@@ -124,11 +156,11 @@ namespace UIToRenderTarget {
             public int height { get { RecalculateIfNeeded(); return _height; } }
 
             void RecalculateIfNeeded() {
-                if (_actualForSourceRect != sourceRect) {
+                if (_appliedSourceRect != sourceRect) {
                     _rect = sourceRect.SnappedToPixels();
                     _width = (int)_rect.width;
                     _height = (int)_rect.height;
-                    _actualForSourceRect = sourceRect;
+                    _appliedSourceRect = sourceRect;
                 }
             }
         }

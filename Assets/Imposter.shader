@@ -55,6 +55,7 @@
 			#include "UnityUI.cginc"
 
 			#pragma multi_compile __ UNITY_UI_ALPHACLIP
+			#pragma multi_compile __ GRAPHIC_TO_RT_FIX_ALPHA
 
 			struct appdata_t
 			{
@@ -83,9 +84,9 @@
 
 				OUT.texcoord = IN.texcoord;
 
-				#ifdef UNITY_HALF_TEXEL_OFFSET
+			#ifdef UNITY_HALF_TEXEL_OFFSET
 				OUT.vertex.xy += (_ScreenParams.zw-1.0) * float2(-1,1) * OUT.vertex.w;
-				#endif
+			#endif
 
 				OUT.color = IN.color * _Color;
 				return OUT;
@@ -98,14 +99,16 @@
 				half4 color = (tex2D(_MainTex, IN.texcoord) + _TextureSampleAdd) * IN.color;
 
 				// TODO describe
+			#if GRAPHIC_TO_RT_FIX_ALPHA
 				color.a = sqrt(color.a);
 				color.rgb /= color.a;
+			#endif
 
 				color.a *= UnityGet2DClipping(IN.worldPosition.xy, _ClipRect);
 
-				#ifdef UNITY_UI_ALPHACLIP
+			#ifdef UNITY_UI_ALPHACLIP
 				clip (color.a - 0.001);
-				#endif
+			#endif
 
 				return color;
 			}

@@ -48,5 +48,7 @@ namespace UIToRenderTarget {
             r.yMax = Mathf.Ceil(r.yMax);
             return r;
         }
+
+        public static void InvokeSafe<A0>(this Action<A0> f, A0 a0) { if (f != null) f(a0); }
     }
 }
