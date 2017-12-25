@@ -1,4 +1,5 @@
 ﻿using System;
+using UnityEditor;
 using Conditional = System.Diagnostics.ConditionalAttribute;
 using UnityEngine;
 using UnityEngine.Assertions;
@@ -13,7 +14,10 @@ namespace UIToRenderTarget {
         public bool fixupAlpha = true;
 
         public Texture texture { get { return _rt; } } // TODO update texture on request?
-        public RectTransform rectTranform { get { return _rectTransform; } }
+
+        public RectTransform rectTranform {
+            get { return _rectTransform ?? (_rectTransform = GetComponent<RectTransform>()); }
+        }
 
         public event Action<GraphicToRT> fixupAlphaChanged;
         public event Action<GraphicToRT> textureChanged;

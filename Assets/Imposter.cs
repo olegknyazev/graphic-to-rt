@@ -39,9 +39,13 @@ namespace UIToRenderTarget {
             get { return _source ? _source.texture : base.mainTexture; }
         }
 
-        protected override void OnEnable() {
+        protected override void Awake() {
+            base.Awake();
             _rectTransform = GetComponent<RectTransform>();
             Assert.IsNotNull(_rectTransform);
+        }
+
+        protected override void OnEnable() {
             _tracker.Clear();
             _tracker.Add(this, _rectTransform, DrivenTransformProperties.SizeDelta);
             ApplyShader();
@@ -67,7 +71,8 @@ namespace UIToRenderTarget {
 #endif
 
         protected override void OnPopulateMesh(VertexHelper vh) {
-            var rect = GetPixelAdjustedRect();
+            var rect = _source.rectTranform.rect;
+            rect = rect.SnappedToPixels();
             vh.Clear();
             vh.AddVert(rect.xMin, rect.yMin, 0, 0);
             vh.AddVert(rect.xMin, rect.yMax, 0, 1);
@@ -128,7 +133,7 @@ namespace UIToRenderTarget {
         }
 
         void ApplySize() {
-            if (_source)
+            if (_source && _rectTransform)
                 _rectTransform.sizeDelta = _source.rectTranform.sizeDelta;
         }
 

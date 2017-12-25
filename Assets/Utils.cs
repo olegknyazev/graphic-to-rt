@@ -50,13 +50,17 @@ namespace UIToRenderTarget {
             return r;
         }
 
+        public static Vector2 Floor(this Vector2 v) {
+            return new Vector2(Mathf.Floor(v.x), Mathf.Floor(v.y));
+        }
+
         public static void InvokeSafe<A0>(this Action<A0> f, A0 a0) { if (f != null) f(a0); }
 
-        static UIVertex s_vertex = UIVertex.simpleVert;
         public static void AddVert(this VertexHelper vh, float x, float y, float u, float v) {
-            s_vertex.position = new Vector2(x, y);
-            s_vertex.uv0 = new Vector2(u, v);
-            vh.AddVert(s_vertex);
+            UIVertex vert = UIVertex.simpleVert;
+            vert.position = new Vector2(x, y);
+            vert.uv0 = new Vector2(u, v);
+            vh.AddVert(vert);
         }
     }
 }
