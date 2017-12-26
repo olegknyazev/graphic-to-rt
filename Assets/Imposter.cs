@@ -71,8 +71,7 @@ namespace UIToRenderTarget {
 #endif
 
         protected override void OnPopulateMesh(VertexHelper vh) {
-            var rect = _source.rectTranform.rect;
-            rect = rect.SnappedToPixels();
+            var rect = _source.imposterMetrics.rect;
             vh.Clear();
             vh.AddVert(rect.xMin, rect.yMin, 0, 0);
             vh.AddVert(rect.xMin, rect.yMax, 0, 1);
@@ -130,7 +129,7 @@ namespace UIToRenderTarget {
 
         void ApplySize() {
             if (_source && _rectTransform)
-                _rectTransform.sizeDelta = _source.rectTranform.sizeDelta;
+                _rectTransform.sizeDelta = _source.imposterMetrics.rect.size;
         }
 
         void ApplyMaterialProperties() {

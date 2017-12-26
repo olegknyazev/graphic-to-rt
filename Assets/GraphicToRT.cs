@@ -17,6 +17,8 @@ namespace UIToRenderTarget {
             get { return _rectTransform ?? (_rectTransform = GetComponent<RectTransform>()); }
         }
 
+        public ImposterMetrics imposterMetrics { get { return _metrics; } }
+
         public event Action<GraphicToRT> textureChanged;
 
         Graphic _graphic;
@@ -113,38 +115,38 @@ namespace UIToRenderTarget {
                 textureChanged.InvokeSafe(this);
             }
         }
+    }
 
-        class ImposterMetrics {
-            static readonly Rect INVALID_RECT = new Rect(float.NaN, float.NaN, float.NaN, float.NaN);
+    public class ImposterMetrics {
+        static readonly Rect INVALID_RECT = new Rect(Single.NaN, Single.NaN, Single.NaN, Single.NaN);
 
-            readonly RectTransform _transform;
+        readonly RectTransform _transform;
 
-            Rect _rect;
-            int _width;
-            int _height;
-            Rect _appliedSourceRect = INVALID_RECT;
+        Rect _rect;
+        int _width;
+        int _height;
+        Rect _appliedSourceRect = INVALID_RECT;
 
-            public ImposterMetrics(RectTransform transform) {
-                _transform = transform;
-            }
+        public ImposterMetrics(RectTransform transform) {
+            _transform = transform;
+        }
 
-            public Rect sourceRect { get { return _transform.rect; } }
+        public Rect sourceRect { get { return _transform.rect; } }
 
-            public Quaternion rotation { get { return _transform.rotation; } }
-            public Vector3 normal { get { return _transform.forward; } }
-            public Vector3 center { get { return _transform.TransformPoint(rect.center); } }
+        public Quaternion rotation { get { return _transform.rotation; } }
+        public Vector3 normal { get { return _transform.forward; } }
+        public Vector3 center { get { return _transform.TransformPoint(rect.center); } }
 
-            public Rect rect { get { RecalculateIfNeeded(); return _rect; } }
-            public int width { get { RecalculateIfNeeded(); return _width; } }
-            public int height { get { RecalculateIfNeeded(); return _height; } }
+        public Rect rect { get { RecalculateIfNeeded(); return _rect; } }
+        public int width { get { RecalculateIfNeeded(); return _width; } }
+        public int height { get { RecalculateIfNeeded(); return _height; } }
 
-            void RecalculateIfNeeded() {
-                if (_appliedSourceRect != sourceRect) {
-                    _rect = sourceRect.SnappedToPixels();
-                    _width = (int)_rect.width;
-                    _height = (int)_rect.height;
-                    _appliedSourceRect = sourceRect;
-                }
+        void RecalculateIfNeeded() {
+            if (_appliedSourceRect != sourceRect) {
+                _rect = sourceRect.SnappedToPixels();
+                _width = (int)_rect.width;
+                _height = (int)_rect.height;
+                _appliedSourceRect = sourceRect;
             }
         }
     }
