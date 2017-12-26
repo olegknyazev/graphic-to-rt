@@ -70,12 +70,6 @@ namespace UIToRenderTarget {
         }
 #endif
 
-        void OnFixupApplyChanged(GraphicToRT graphicToRT) {
-            Assert.IsNotNull(graphicToRT);
-            Assert.AreEqual(_source, graphicToRT);
-            ApplyMaterialProperties();
-        }
-
         void OnTextureChanged(GraphicToRT graphicToRT) {
             Assert.IsNotNull(graphicToRT);
             Assert.AreEqual(_source, graphicToRT);
@@ -90,7 +84,6 @@ namespace UIToRenderTarget {
                 _appliedSource = _source;
                 if (_appliedSource)
                     _appliedSource.textureChanged += OnTextureChanged;
-                ApplyMaterialProperties();
                 ApplyTexture();
                 ApplySize();
             }
@@ -104,7 +97,6 @@ namespace UIToRenderTarget {
                 if (_shader)
                     _material = new Material(_shader) { hideFlags = HideFlags.HideAndDontSave };
                 ApplyMaterial();
-                ApplyMaterialProperties();
             }
         }
 
@@ -120,20 +112,11 @@ namespace UIToRenderTarget {
             if (_source && _rectTransform)
                 _rectTransform.sizeDelta = _source.imposterMetrics.rect.size;
         }
-
-        void ApplyMaterialProperties() {
-            if (_material && _source)
-                _material.EnableKeyword(Ids.FIX_ALPHA);
-        }
         
         void DestroyMaterial() {
             DestroyImmediate(_material);
             _material = null;
             material = null;
-        }
-
-        static class Ids {
-            public static readonly string FIX_ALPHA = "GRAPHIC_TO_RT_FIX_ALPHA";
         }
     }
 }
