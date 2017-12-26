@@ -97,15 +97,11 @@ namespace UIToRenderTarget {
 
         void ApplySource() {
             if (_appliedSource != _source) {
-                if (_appliedSource) {
-                    _appliedSource.fixupAlphaChanged -= OnFixupApplyChanged;
+                if (_appliedSource)
                     _appliedSource.textureChanged -= OnTextureChanged;
-                }
                 _appliedSource = _source;
-                if (_appliedSource) {
-                    _appliedSource.fixupAlphaChanged += OnFixupApplyChanged;
+                if (_appliedSource)
                     _appliedSource.textureChanged += OnTextureChanged;
-                }
                 ApplyMaterialProperties();
                 ApplyTexture();
                 ApplySize();
@@ -139,10 +135,7 @@ namespace UIToRenderTarget {
 
         void ApplyMaterialProperties() {
             if (_material && _source)
-                if (_source.fixupAlpha) // GraphicToRT already fixed channels
-                    _material.DisableKeyword(Ids.FIX_ALPHA);
-                else
-                    _material.EnableKeyword(Ids.FIX_ALPHA);
+                _material.EnableKeyword(Ids.FIX_ALPHA);
         }
         
         void DestroyMaterial() {

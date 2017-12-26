@@ -1,64 +1,68 @@
 ﻿using System;
+using System.Collections.Generic;
 using UnityEditor;
 using Conditional = System.Diagnostics.ConditionalAttribute;
 using UnityEngine;
 using UnityEngine.Assertions;
+using UnityEngine.Rendering;
 using UnityEngine.UI;
 
 namespace UIToRenderTarget {
     [ExecuteInEditMode]
     [RequireComponent(typeof(Graphic))]
-    public class GraphicToRT : MonoBehaviour {
-        public int layer = 31;
-        public Shader fixupAlphaShader;
-        public bool fixupAlpha = true;
-
+    public class GraphicToRT : BaseMeshEffect {
         public Texture texture { get { return _rt; } } // TODO update texture on request?
 
         public RectTransform rectTranform {
             get { return _rectTransform ?? (_rectTransform = GetComponent<RectTransform>()); }
         }
 
-        public event Action<GraphicToRT> fixupAlphaChanged;
         public event Action<GraphicToRT> textureChanged;
 
         Graphic _graphic;
         RectTransform _rectTransform;
         RenderTexture _rt;
-        Camera _camera;
-        GraphicRaycaster _originalRaycaster;
-        Canvas _localCanvas;
-        GraphicRaycaster _localRaycaster;
         ImposterMetrics _metrics;
 
-        bool _appliedFixupAlpha = false;
-        Shader _appliedFixupAlphaShader = null;
+        Mesh _mesh;
+        Material _material;
+        CommandBuffer _commandBuffer;
 
-        public void OnEnable() {
+        protected override void OnEnable() {
             _graphic = GetComponent<Graphic>();
             _rectTransform = GetComponent<RectTransform>();
             Assert.IsNotNull(_graphic);
             Assert.IsNotNull(_rectTransform);
-            _camera = CreateCamera();
             _metrics = new ImposterMetrics(_rectTransform);
-            ApplyFixupAlpha();
+            _mesh = new Mesh();
+            _commandBuffer = new CommandBuffer();
+            Canvas.willRenderCanvases += OnWillRenderCanvases;
+            base.OnEnable();
         }
 
-        public void OnDisable() {
-            if (_camera) DestroyImmediate(_camera.gameObject);
+        protected override void OnDisable() {
+            Canvas.willRenderCanvases -= OnWillRenderCanvases;
+            base.OnDisable();
             if (_rt) DestroyImmediate(_rt);
+            if (_mesh) DestroyImmediate(_mesh);
+            if (_material) DestroyImmediate(_material);
+            if (_commandBuffer != null) _commandBuffer.Dispose();
         }
 
-        public void Update() {
-            if (fixupAlpha != _appliedFixupAlpha || fixupAlphaShader != _appliedFixupAlphaShader) {
-                ApplyFixupAlpha();
-                fixupAlphaChanged.InvokeSafe(this);
+        void UpdateMaterial() {
+            RecreateMaterialIfNeeded();
+            if (_material)
+                _material.CopyPropertiesFromMaterial(_graphic.materialForRendering);
+        }
+
+        void RecreateMaterialIfNeeded() {
+            var prototype = _graphic.materialForRendering;
+            if (_material && (!prototype || _material.shader != prototype.shader)) {
+                DestroyImmediate(_material);
+                _material = null;
             }
-            UpdateLocalCanvas();
-            Utils.WithoutScaleAndRotation(_graphic.transform, () => {
-                UpdateRTSize();
-                UpdateRT();
-            });
+            if (!_material && prototype)
+                _material = new Material(prototype);
         }
 
         [Conditional("UNITY_EDITOR")]
@@ -66,43 +70,38 @@ namespace UIToRenderTarget {
             if (_rt) GUI.DrawTexture(new Rect(0, 0, _rt.width, _rt.height), _rt);
         }
 
-        Camera CreateCamera() {
-            var camera =
-                new GameObject("GraphicToRT Camera") {
-                    hideFlags = HideFlags.HideAndDontSave
-                }.AddComponent<Camera>();
-            camera.enabled = false;
-            camera.clearFlags = CameraClearFlags.SolidColor;
-            camera.backgroundColor = Color.clear;
-            camera.orthographic = true;
-            return camera;
+        public void Update() {
+            UpdateRTSize();
         }
 
-        void ApplyFixupAlpha() {
-            var effect = _camera.GetComponent<FixupAlphaEffect>();
-            if (effect && !fixupAlpha)
-                DestroyImmediate(effect);
-            else if (!effect && fixupAlpha)
-                effect = _camera.gameObject.AddComponent<FixupAlphaEffect>();
-            if (effect) {
-                effect.shader = fixupAlphaShader;
-                effect.enabled = true; // it might be disabled before if shader wasn't set
-            }
-            _appliedFixupAlpha = fixupAlpha;
-            _appliedFixupAlphaShader = fixupAlphaShader;
+        public override void ModifyMesh(VertexHelper vh) {
+            _mesh.Clear();
+            vh.FillMesh(_mesh);
         }
 
-        void UpdateLocalCanvas() {
-            if (!_localCanvas)
-                _localCanvas = this.GetOrCreateComponent<Canvas>();
-            if (!_originalRaycaster)
-                _originalRaycaster = _localCanvas.rootCanvas.GetComponent<GraphicRaycaster>();
-            if (_originalRaycaster) {
-                if (!_localRaycaster)
-                    _localRaycaster = _graphic.GetOrCreateComponent<GraphicRaycaster>();
-                _localRaycaster.blockingObjects = _originalRaycaster.blockingObjects;
-                _localRaycaster.ignoreReversedGraphics = _originalRaycaster.ignoreReversedGraphics;
-            }
+        void OnWillRenderCanvases() {
+            RenderVerticesCommandBuffer();
+        }
+
+        void RenderVerticesCommandBuffer() {
+            UpdateMaterial();
+            if (!_material)
+                return;
+            var props = new MaterialPropertyBlock();
+            props.SetVector("_ClipRect", new Vector4(-1000, -1000, 1000, 1000));
+            props.SetTexture("_MainTex", _graphic.mainTexture);
+            props.SetColor("_Color", _graphic.color);
+            props.SetFloat("unity_GUIZTestMode", (float)UnityEngine.Rendering.CompareFunction.Always);
+            _commandBuffer.Clear();
+            _commandBuffer.SetRenderTarget(_rt);
+            _commandBuffer.ClearRenderTarget(false, true, Color.clear);
+            _commandBuffer.SetViewProjectionMatrices(
+                Matrix4x4.identity,
+                Matrix4x4.Ortho(0, _metrics.rect.width, 0, _metrics.rect.height, -10, 1000));
+            _commandBuffer.DrawMesh(_mesh,
+                Matrix4x4.identity,
+                _material, 0, 0, props);
+            Graphics.ExecuteCommandBuffer(_commandBuffer);
         }
 
         void UpdateRTSize() {
@@ -113,23 +112,6 @@ namespace UIToRenderTarget {
                     hideFlags = HideFlags.HideAndDontSave
                 };
                 textureChanged.InvokeSafe(this);
-            }
-        }
-
-        void UpdateRT() {
-            if (_rt && _localCanvas.rootCanvas) {
-                Assert.AreEqual(_metrics.width, _rt.width);
-                Assert.AreEqual(_metrics.height, _rt.height);
-                Utils.WithRenderMode(_localCanvas.rootCanvas, RenderMode.WorldSpace, () =>
-                Utils.WithObjectLayer(_graphic.gameObject, layer, () => {
-                    _camera.orthographicSize = _metrics.height / 2f;
-                    _camera.aspect = _metrics.width / (float)_metrics.height;
-                    _camera.transform.position = _metrics.center - _metrics.normal * _camera.nearClipPlane * 2f;
-                    _camera.transform.rotation = _metrics.rotation;
-                    _camera.targetTexture = _rt;
-                    _camera.cullingMask = 1 << layer;
-                    _camera.Render();
-                }));
             }
         }
 
