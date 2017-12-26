@@ -50,7 +50,7 @@ namespace UIToRenderTarget {
             _tracker.Add(this, _rectTransform, DrivenTransformProperties.SizeDelta);
             ApplyShader();
             ApplySource();
-            ApplyTexture();
+            SetMaterialDirty();
             ApplyMaterial();
             ApplySize();
             base.OnEnable();
@@ -70,21 +70,27 @@ namespace UIToRenderTarget {
         }
 #endif
 
-        void OnTextureChanged(GraphicToRT graphicToRT) {
-            Assert.IsNotNull(graphicToRT);
-            Assert.AreEqual(_source, graphicToRT);
-            ApplyTexture();
+        protected override void OnPopulateMesh(VertexHelper vh) {
+            vh.Clear();
+            if (!_source || !_source.texture)
+                return;
+            base.OnPopulateMesh(vh);
+        }
+
+        void OnTextureChanged() {
             ApplySize();
+            SetMaterialDirty();
+            SetVerticesDirty();
         }
 
         void ApplySource() {
             if (_appliedSource != _source) {
                 if (_appliedSource)
-                    _appliedSource.textureChanged -= OnTextureChanged;
+                    _appliedSource.textureChanged.RemoveListener(OnTextureChanged);
                 _appliedSource = _source;
                 if (_appliedSource)
-                    _appliedSource.textureChanged += OnTextureChanged;
-                ApplyTexture();
+                    _appliedSource.textureChanged.AddListener(OnTextureChanged);
+                SetMaterialDirty();
                 ApplySize();
             }
         }
@@ -95,17 +101,13 @@ namespace UIToRenderTarget {
                     DestroyMaterial();
                 _appliedShader = _shader;
                 if (_shader)
-                    _material = new Material(_shader) { hideFlags = HideFlags.HideAndDontSave };
+                    _material = new Material(_shader).HideAndDontSave();
                 ApplyMaterial();
             }
         }
 
         void ApplyMaterial() {
             material = _material;
-        }
-
-        void ApplyTexture() {
-            SetMaterialDirty();
         }
 
         void ApplySize() {

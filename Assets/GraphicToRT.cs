@@ -1,16 +1,16 @@
 ﻿using System;
-using System.Collections.Generic;
-using UnityEditor;
-using Conditional = System.Diagnostics.ConditionalAttribute;
 using UnityEngine;
-using UnityEngine.Assertions;
+using UnityEngine.Events;
 using UnityEngine.Rendering;
 using UnityEngine.UI;
+using Conditional = System.Diagnostics.ConditionalAttribute;
 
 namespace UIToRenderTarget {
     [ExecuteInEditMode]
     [RequireComponent(typeof(Graphic))]
     public class GraphicToRT : BaseMeshEffect {
+        public UnityEvent textureChanged = new UnityEvent();
+
         public Texture texture { get { return _rt; } }
 
         public RectTransform rectTranform {
@@ -23,8 +23,6 @@ namespace UIToRenderTarget {
             }
         }
 
-        public event Action<GraphicToRT> textureChanged;
-
         RectTransform _rectTransform;
         ImposterMetrics _metrics;
         RenderTexture _rt;
@@ -36,27 +34,17 @@ namespace UIToRenderTarget {
         protected override void OnEnable() {
             _mesh = new Mesh();
             _commandBuffer = new CommandBuffer();
-            base.graphic.RegisterDirtyMaterialCallback(OnMaterialDirty);
-            Canvas.willRenderCanvases += OnWillRenderCanvases;
+            graphic.RegisterDirtyMaterialCallback(OnMaterialDirty);
             base.OnEnable();
         }
 
         protected override void OnDisable() {
-            Canvas.willRenderCanvases -= OnWillRenderCanvases;
-            base.graphic.UnregisterDirtyMaterialCallback(OnMaterialDirty);
+            graphic.UnregisterDirtyMaterialCallback(OnMaterialDirty);
             base.OnDisable();
             if (_rt) DestroyImmediate(_rt);
             if (_mesh) DestroyImmediate(_mesh);
             if (_material) DestroyImmediate(_material);
             if (_commandBuffer != null) _commandBuffer.Dispose();
-        }
-
-        void OnWillRenderCanvases() {
-            Render();
-        }
-
-        void OnMaterialDirty() {
-            Render();
         }
 
         [Conditional("UNITY_EDITOR")]
@@ -70,6 +58,11 @@ namespace UIToRenderTarget {
 
         public override void ModifyMesh(VertexHelper vh) {
             vh.FillMesh(_mesh);
+            Render();
+        }
+
+        void OnMaterialDirty() {
+            Render();
         }
 
         void UpdateMaterial() {
@@ -111,13 +104,16 @@ namespace UIToRenderTarget {
         void UpdateRTSize() {
             var width = imposterMetrics.width;
             var height = imposterMetrics.height;
-            if (!_rt || _rt.width != width || _rt.height != height) {
+            var shouldBeCreated = graphic.enabled;
+            if (!_rt && shouldBeCreated
+                    || _rt && !shouldBeCreated
+                    || _rt && _rt.width != width
+                    || _rt && _rt.height != height) {
                 if (_rt)
                     DestroyImmediate(_rt);
-                _rt = new RenderTexture(width, height, 0, RenderTextureFormat.ARGB32) {
-                    hideFlags = HideFlags.HideAndDontSave
-                };
-                textureChanged.InvokeSafe(this);
+                if (shouldBeCreated)
+                    _rt = new RenderTexture(width, height, 0).HideAndDontSave();
+                textureChanged.Invoke();
             }
         }
     }

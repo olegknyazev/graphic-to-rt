@@ -249,22 +249,22 @@ Prefab:
     - target: {fileID: 224000012030558962, guid: b32a48f26b6e672409e14389c692c456,
         type: 2}
       propertyPath: m_AnchoredPosition.x
-      value: -108.8
+      value: -86.5
       objectReference: {fileID: 0}
     - target: {fileID: 224000012030558962, guid: b32a48f26b6e672409e14389c692c456,
         type: 2}
       propertyPath: m_AnchoredPosition.y
-      value: -110.4
+      value: -129
       objectReference: {fileID: 0}
     - target: {fileID: 224000012030558962, guid: b32a48f26b6e672409e14389c692c456,
         type: 2}
       propertyPath: m_SizeDelta.x
-      value: 94
+      value: 95
       objectReference: {fileID: 0}
     - target: {fileID: 224000012030558962, guid: b32a48f26b6e672409e14389c692c456,
         type: 2}
       propertyPath: m_SizeDelta.y
-      value: 79.02
+      value: 80
       objectReference: {fileID: 0}
     - target: {fileID: 224000012030558962, guid: b32a48f26b6e672409e14389c692c456,
         type: 2}
@@ -325,6 +325,10 @@ Prefab:
         type: 2}
       propertyPath: m_Material
       value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 1000010588055602, guid: b32a48f26b6e672409e14389c692c456, type: 2}
+      propertyPath: m_IsActive
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents:
     - {fileID: 114000013484888410, guid: b32a48f26b6e672409e14389c692c456, type: 2}
@@ -578,11 +582,11 @@ RectTransform:
   m_Father: {fileID: 346157606}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 69.3, y: 15.599998}
-  m_SizeDelta: {x: 94, y: 79.01999}
-  m_Pivot: {x: 0, y: 0}
+  m_AnchorMin: {x: 1, y: 0}
+  m_AnchorMax: {x: 1, y: 0}
+  m_AnchoredPosition: {x: -16.40001, y: 13.599995}
+  m_SizeDelta: {x: 94.5, y: 79.01999}
+  m_Pivot: {x: 1, y: 0}
 --- !u!114 &1159057289
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -701,10 +705,14 @@ MonoBehaviour:
   m_GameObject: {fileID: 1159057287}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 35d53970b4fa8df4bae818a0255a4ebd, type: 3}
+  m_Script: {fileID: 11500000, guid: 7c64df46f44ba414fa86db71c39514d9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  mat: {fileID: 2100000, guid: 5c2ec6724c45a2945b9ba6070795f5f3, type: 2}
+  textureChanged:
+    m_PersistentCalls:
+      m_Calls: []
+    m_TypeName: UnityEngine.Events.UnityEvent, UnityEngine, Version=0.0.0.0, Culture=neutral,
+      PublicKeyToken=null
 --- !u!21 &1676739281
 Material:
   serializedVersion: 6
