@@ -70,17 +70,6 @@ namespace UIToRenderTarget {
         }
 #endif
 
-        protected override void OnPopulateMesh(VertexHelper vh) {
-            var rect = _source.imposterMetrics.rect;
-            vh.Clear();
-            vh.AddVert(rect.xMin, rect.yMin, 0, 0);
-            vh.AddVert(rect.xMin, rect.yMax, 0, 1);
-            vh.AddVert(rect.xMax, rect.yMax, 1, 1);
-            vh.AddVert(rect.xMax, rect.yMin, 1, 0);
-            vh.AddTriangle(0, 1, 2);
-            vh.AddTriangle(0, 2, 3);
-        }
-
         void OnFixupApplyChanged(GraphicToRT graphicToRT) {
             Assert.IsNotNull(graphicToRT);
             Assert.AreEqual(_source, graphicToRT);
