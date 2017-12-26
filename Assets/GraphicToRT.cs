@@ -92,15 +92,14 @@ namespace UIToRenderTarget {
             props.SetTexture("_MainTex", _graphic.mainTexture);
             props.SetColor("_Color", _graphic.color);
             props.SetFloat("unity_GUIZTestMode", (float)UnityEngine.Rendering.CompareFunction.Always);
+            var r = _metrics.rect;
             _commandBuffer.Clear();
             _commandBuffer.SetRenderTarget(_rt);
             _commandBuffer.ClearRenderTarget(false, true, Color.clear);
             _commandBuffer.SetViewProjectionMatrices(
                 Matrix4x4.identity,
-                Matrix4x4.Ortho(0, _metrics.rect.width, 0, _metrics.rect.height, -10, 1000));
-            _commandBuffer.DrawMesh(_mesh,
-                Matrix4x4.identity,
-                _material, 0, 0, props);
+                Matrix4x4.Ortho(r.xMin, r.xMax, r.yMin, r.yMax, -10, 1000));
+            _commandBuffer.DrawMesh(_mesh, Matrix4x4.identity, _material, 0, 0, props);
             Graphics.ExecuteCommandBuffer(_commandBuffer);
         }
 
