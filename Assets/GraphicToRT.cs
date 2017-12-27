@@ -2,7 +2,6 @@
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.UI;
-using Conditional = System.Diagnostics.ConditionalAttribute;
 
 namespace UIToRenderTarget {
     [ExecuteInEditMode]
@@ -46,12 +45,13 @@ namespace UIToRenderTarget {
             if (_materialProperties != null) _materialProperties.Clear();
         }
 
-        [Conditional("UNITY_EDITOR")]
-        public void OnGUI() {
+#if UNITY_EDITOR
+        void OnGUI() {
             if (_rt) GUI.DrawTexture(new Rect(0, 0, _rt.width, _rt.height), _rt);
         }
+#endif
 
-        public void LateUpdate() {
+        void LateUpdate() {
             var newCaptureRect = graphic.rectTransform.rect.SnappedToPixels();
             if (newCaptureRect != _appliedRect) {
                 _appliedRect = newCaptureRect;
@@ -119,15 +119,13 @@ namespace UIToRenderTarget {
                 DestroyImmediate(_material);
                 _material = null;
             }
-            if (!_material && prototype) {
+            if (!_material && prototype)
                 _material = new Material(prototype);
-                UpdateCommandBuffer();
-            }
         }
 
         void UpdateCommandBuffer() {
             _materialProperties.Clear();
-            _materialProperties.SetVector("_ClipRect", new Vector4(-1000, -1000, 1000, 1000));
+            _materialProperties.SetVector("_ClipRect", infiniteClipRect);
             if (_appliedTexture)
                 _materialProperties.SetTexture("_MainTex", _appliedTexture);
             _materialProperties.SetColor("_Color", _appliedColor);
@@ -144,5 +142,11 @@ namespace UIToRenderTarget {
         }
 
         static void Touch<T>(T obj) { }
+
+        static readonly Vector4 infiniteClipRect = new Vector4(
+            float.NegativeInfinity,
+            float.NegativeInfinity,
+            float.PositiveInfinity,
+            float.PositiveInfinity);
     }
 }
