@@ -1,5 +1,5 @@
-﻿using UnityEngine;
-using UnityEngine.Events;
+﻿using System;
+using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.UI;
 using Conditional = System.Diagnostics.ConditionalAttribute;
@@ -8,10 +8,6 @@ namespace UIToRenderTarget {
     [ExecuteInEditMode]
     [RequireComponent(typeof(Graphic))]
     public class GraphicToRT : BaseMeshEffect {
-        public UnityEvent textureChanged = new UnityEvent();
-
-        public Texture texture { get { return _rt; } }
-
         RectTransform _rectTransform;
         RenderTexture _rt;
 
@@ -25,11 +21,16 @@ namespace UIToRenderTarget {
         Color _appliedColor;
         Texture _appliedTexture;
 
+        public Texture texture { get { return _rt; } }
+
+        public event Action<GraphicToRT> textureChanged;
+
         protected override void OnEnable() {
             _mesh = new Mesh();
             _commandBuffer = new CommandBuffer();
             _materialProperties = new MaterialPropertyBlock();
             graphic.RegisterDirtyMaterialCallback(OnMaterialDirty);
+            Touch(CanvasUpdateRegistry.instance); // CanvasUpdateRegistry should be subscribed first
             Canvas.willRenderCanvases += OnWillRenderCanvases;
             base.OnEnable();
         }
@@ -76,7 +77,7 @@ namespace UIToRenderTarget {
                 if (shouldBeCreated)
                     _rt = new RenderTexture(width, height, 0).HideAndDontSave();
                 _dirty = true;
-                textureChanged.Invoke();
+                textureChanged.InvokeSafe(this);
             }
         }
 
@@ -141,5 +142,7 @@ namespace UIToRenderTarget {
                 Matrix4x4.Ortho(r.xMin, r.xMax, r.yMin, r.yMax, -10, 1000));
             _commandBuffer.DrawMesh(_mesh, Matrix4x4.identity, _material, 0, 0, _materialProperties);
         }
+
+        static void Touch<T>(T obj) { }
     }
 }

@@ -50,14 +50,12 @@ namespace UIToRenderTarget {
             _tracker.Add(this, _rectTransform, DrivenTransformProperties.SizeDelta);
             ApplyShader();
             ApplySource();
-            SetMaterialDirty();
-            ApplyMaterial();
-            ApplySize();
             base.OnEnable();
         }
 
         protected override void OnDisable() {
-            DestroyMaterial();
+            ApplySource(null);
+            ApplyShader(null);
             _tracker.Clear();
             base.OnDisable();
         }
@@ -67,6 +65,7 @@ namespace UIToRenderTarget {
             base.OnValidate();
             ApplyShader();
             ApplySource();
+            ApplySize();
         }
 #endif
 
@@ -77,34 +76,38 @@ namespace UIToRenderTarget {
             base.OnPopulateMesh(vh);
         }
 
-        void OnTextureChanged() {
+        void OnTextureChanged(GraphicToRT sender) {
             ApplySize();
             SetMaterialDirty();
             SetVerticesDirty();
         }
 
-        void ApplySource() {
-            if (_appliedSource != _source) {
+        void ApplySource() { ApplySource(_source); }
+        void ApplySource(GraphicToRT source) {
+            if (_appliedSource != source) {
                 if (_appliedSource)
-                    _appliedSource.textureChanged.RemoveListener(OnTextureChanged);
-                _appliedSource = _source;
+                    _appliedSource.textureChanged -= OnTextureChanged;
+                _appliedSource = source;
                 if (_appliedSource)
-                    _appliedSource.textureChanged.AddListener(OnTextureChanged);
+                    _appliedSource.textureChanged += OnTextureChanged;
                 SetMaterialDirty();
                 ApplySize();
             }
         }
 
-        void ApplyShader() {
-            var shouldBeCreated = _shader != null;
+        void ApplyShader() { ApplyShader(shader); }
+        void ApplyShader(Shader shader) {
+            var shouldBeCreated = shader != null;
             if (!_material && shouldBeCreated
                     || _material && !shouldBeCreated
-                    || _appliedShader != _shader) {
-                if (_material)
-                    DestroyMaterial();
-                _appliedShader = _shader;
-                if (_shader)
-                    _material = new Material(_shader).HideAndDontSave();
+                    || _appliedShader != shader) {
+                if (_material) {
+                    DestroyImmediate(_material);
+                    _material = null;
+                }
+                _appliedShader = shader;
+                if (shader)
+                    _material = new Material(shader).HideAndDontSave();
                 ApplyMaterial();
             }
         }
@@ -116,12 +119,6 @@ namespace UIToRenderTarget {
         void ApplySize() {
             if (_rectTransform && _source && _source.texture)
                 _rectTransform.sizeDelta = new Vector2(_source.texture.width, _source.texture.height);
-        }
-        
-        void DestroyMaterial() {
-            DestroyImmediate(_material);
-            _material = null;
-            material = null;
         }
     }
 }
