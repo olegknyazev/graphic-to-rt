@@ -9,8 +9,8 @@ namespace UIToRenderTarget {
         [SerializeField] Shader _shader;
         
         RectTransform _rectTransform;
-        Material _material;
         DrivenRectTransformTracker _tracker;
+        Material _material;
 
         GraphicToRT _appliedSource;
         Shader _appliedShader;
@@ -96,7 +96,10 @@ namespace UIToRenderTarget {
         }
 
         void ApplyShader() {
-            if (_appliedShader != _shader) {
+            var shouldBeCreated = _shader != null;
+            if (!_material && shouldBeCreated
+                    || _material && !shouldBeCreated
+                    || _appliedShader != _shader) {
                 if (_material)
                     DestroyMaterial();
                 _appliedShader = _shader;
