@@ -60,6 +60,11 @@ namespace UIToRenderTarget {
             base.OnDisable();
         }
 
+        protected override void OnRectTransformDimensionsChange() {
+            base.OnRectTransformDimensionsChange();
+            ApplySize();
+        }
+
 #if UNITY_EDITOR
         protected override void OnValidate() {
             base.OnValidate();
