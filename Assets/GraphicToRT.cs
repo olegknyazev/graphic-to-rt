@@ -1,5 +1,4 @@
-﻿using System;
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.Rendering;
 using UnityEngine.UI;
@@ -13,38 +12,37 @@ namespace UIToRenderTarget {
 
         public Texture texture { get { return _rt; } }
 
-        public RectTransform rectTranform {
-            get { return _rectTransform ?? (_rectTransform = GetComponent<RectTransform>()); }
-        }
-
-        public ImposterMetrics imposterMetrics {
-            get {
-                return _metrics ?? (_metrics = new ImposterMetrics(rectTranform));
-            }
-        }
-
         RectTransform _rectTransform;
-        ImposterMetrics _metrics;
         RenderTexture _rt;
 
         Mesh _mesh;
         Material _material;
         CommandBuffer _commandBuffer;
+        MaterialPropertyBlock _materialProperties;
+
+        bool _dirty;
+        Rect _appliedRect;
+        Color _appliedColor;
+        Texture _appliedTexture;
 
         protected override void OnEnable() {
             _mesh = new Mesh();
             _commandBuffer = new CommandBuffer();
+            _materialProperties = new MaterialPropertyBlock();
             graphic.RegisterDirtyMaterialCallback(OnMaterialDirty);
+            Canvas.willRenderCanvases += OnWillRenderCanvases;
             base.OnEnable();
         }
 
         protected override void OnDisable() {
             graphic.UnregisterDirtyMaterialCallback(OnMaterialDirty);
+            Canvas.willRenderCanvases -= OnWillRenderCanvases;
             base.OnDisable();
             if (_rt) DestroyImmediate(_rt);
             if (_mesh) DestroyImmediate(_mesh);
             if (_material) DestroyImmediate(_material);
             if (_commandBuffer != null) _commandBuffer.Dispose();
+            if (_materialProperties != null) _materialProperties.Clear();
         }
 
         [Conditional("UNITY_EDITOR")]
@@ -52,17 +50,60 @@ namespace UIToRenderTarget {
             if (_rt) GUI.DrawTexture(new Rect(0, 0, _rt.width, _rt.height), _rt);
         }
 
-        public void Update() {
-            UpdateRTSize();
+        public void LateUpdate() {
+            var newCaptureRect = graphic.rectTransform.rect.SnappedToPixels();
+            if (newCaptureRect != _appliedRect) {
+                _appliedRect = newCaptureRect;
+                _dirty = true;
+            }
+            if (_appliedColor != graphic.color) {
+                _appliedColor = graphic.color;
+                _dirty = true;
+            }
+            if (_appliedTexture != graphic.mainTexture) {
+                _appliedTexture = graphic.mainTexture;
+                _dirty = true;
+            }
+            var width = (int)_appliedRect.width;
+            var height = (int)_appliedRect.height;
+            var shouldBeCreated = graphic.enabled;
+            if (!_rt && shouldBeCreated
+                || _rt && !shouldBeCreated
+                || _rt && _rt.width != width
+                || _rt && _rt.height != height) {
+                if (_rt)
+                    DestroyImmediate(_rt);
+                if (shouldBeCreated)
+                    _rt = new RenderTexture(width, height, 0).HideAndDontSave();
+                _dirty = true;
+                textureChanged.Invoke();
+            }
         }
 
         public override void ModifyMesh(VertexHelper vh) {
-            vh.FillMesh(_mesh);
-            Render();
+            if (_mesh) {
+                vh.FillMesh(_mesh);
+                _dirty = true;
+            }
         }
 
         void OnMaterialDirty() {
-            Render();
+            _dirty = true;
+        }
+
+        void OnWillRenderCanvases() {
+            if (_dirty) {
+                Render();
+                _dirty = false;
+            }
+        }
+
+        void Render() {
+            UpdateMaterial();
+            if (_material) {
+                UpdateCommandBuffer();
+                Graphics.ExecuteCommandBuffer(_commandBuffer);
+            }
         }
 
         void UpdateMaterial() {
@@ -77,74 +118,28 @@ namespace UIToRenderTarget {
                 DestroyImmediate(_material);
                 _material = null;
             }
-            if (!_material && prototype)
+            if (!_material && prototype) {
                 _material = new Material(prototype);
+                UpdateCommandBuffer();
+            }
         }
 
-        void Render() {
-            UpdateMaterial();
-            if (!_material)
-                return;
-            var props = new MaterialPropertyBlock();
-            props.SetVector("_ClipRect", new Vector4(-1000, -1000, 1000, 1000));
-            props.SetTexture("_MainTex", graphic.mainTexture);
-            props.SetColor("_Color", graphic.color);
-            props.SetFloat("unity_GUIZTestMode", (float)CompareFunction.Always);
-            var r = imposterMetrics.rect;
+        void UpdateCommandBuffer() {
+            _materialProperties.Clear();
+            _materialProperties.SetVector("_ClipRect", new Vector4(-1000, -1000, 1000, 1000));
+            if (_appliedTexture)
+                _materialProperties.SetTexture("_MainTex", _appliedTexture);
+            _materialProperties.SetColor("_Color", _appliedColor);
+            _materialProperties.SetFloat("unity_GUIZTestMode", (float)CompareFunction.Always);
+
+            var r = _appliedRect;
             _commandBuffer.Clear();
             _commandBuffer.SetRenderTarget(_rt);
             _commandBuffer.ClearRenderTarget(false, true, Color.clear);
             _commandBuffer.SetViewProjectionMatrices(
                 Matrix4x4.identity,
                 Matrix4x4.Ortho(r.xMin, r.xMax, r.yMin, r.yMax, -10, 1000));
-            _commandBuffer.DrawMesh(_mesh, Matrix4x4.identity, _material, 0, 0, props);
-            Graphics.ExecuteCommandBuffer(_commandBuffer);
-        }
-
-        void UpdateRTSize() {
-            var width = imposterMetrics.width;
-            var height = imposterMetrics.height;
-            var shouldBeCreated = graphic.enabled;
-            if (!_rt && shouldBeCreated
-                    || _rt && !shouldBeCreated
-                    || _rt && _rt.width != width
-                    || _rt && _rt.height != height) {
-                if (_rt)
-                    DestroyImmediate(_rt);
-                if (shouldBeCreated)
-                    _rt = new RenderTexture(width, height, 0).HideAndDontSave();
-                textureChanged.Invoke();
-            }
-        }
-    }
-
-    public class ImposterMetrics {
-        static readonly Rect INVALID_RECT = new Rect(Single.NaN, Single.NaN, Single.NaN, Single.NaN);
-
-        readonly RectTransform _transform;
-
-        Rect _rect;
-        int _width;
-        int _height;
-        Rect _appliedSourceRect = INVALID_RECT;
-
-        public ImposterMetrics(RectTransform transform) {
-            _transform = transform;
-        }
-
-        public Rect sourceRect { get { return _transform.rect; } }
-
-        public Rect rect { get { RecalculateIfNeeded(); return _rect; } }
-        public int width { get { RecalculateIfNeeded(); return _width; } }
-        public int height { get { RecalculateIfNeeded(); return _height; } }
-
-        void RecalculateIfNeeded() {
-            if (_appliedSourceRect != sourceRect) {
-                _rect = sourceRect.SnappedToPixels();
-                _width = (int)_rect.width;
-                _height = (int)_rect.height;
-                _appliedSourceRect = sourceRect;
-            }
+            _commandBuffer.DrawMesh(_mesh, Matrix4x4.identity, _material, 0, 0, _materialProperties);
         }
     }
 }

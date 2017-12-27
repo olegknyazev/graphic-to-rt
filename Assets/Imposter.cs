@@ -111,8 +111,8 @@ namespace UIToRenderTarget {
         }
 
         void ApplySize() {
-            if (_source && _rectTransform)
-                _rectTransform.sizeDelta = _source.imposterMetrics.rect.size;
+            if (_rectTransform && _source && _source.texture)
+                _rectTransform.sizeDelta = new Vector2(_source.texture.width, _source.texture.height);
         }
         
         void DestroyMaterial() {
