@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Runtime.InteropServices;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -61,6 +62,11 @@ namespace UIToRenderTarget {
             vert.position = new Vector2(x, y);
             vert.uv0 = new Vector2(u, v);
             vh.AddVert(vert);
+        }
+
+        public static T HideAndDontSave<T>(this T obj) where T : UnityEngine.Object {
+            obj.hideFlags = HideFlags.HideAndDontSave;
+            return obj;
         }
     }
 }

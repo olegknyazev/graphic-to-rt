@@ -9,8 +9,8 @@ namespace UIToRenderTarget {
         [SerializeField] Shader _shader;
         
         RectTransform _rectTransform;
-        Material _material;
         DrivenRectTransformTracker _tracker;
+        Material _material;
 
         GraphicToRT _appliedSource;
         Shader _appliedShader;
@@ -50,16 +50,19 @@ namespace UIToRenderTarget {
             _tracker.Add(this, _rectTransform, DrivenTransformProperties.SizeDelta);
             ApplyShader();
             ApplySource();
-            ApplyTexture();
-            ApplyMaterial();
-            ApplySize();
             base.OnEnable();
         }
 
         protected override void OnDisable() {
-            DestroyMaterial();
+            ApplySource(null);
+            ApplyShader(null);
             _tracker.Clear();
             base.OnDisable();
+        }
+
+        protected override void OnRectTransformDimensionsChange() {
+            base.OnRectTransformDimensionsChange();
+            ApplySize();
         }
 
 #if UNITY_EDITOR
@@ -67,60 +70,50 @@ namespace UIToRenderTarget {
             base.OnValidate();
             ApplyShader();
             ApplySource();
+            ApplySize();
         }
 #endif
 
         protected override void OnPopulateMesh(VertexHelper vh) {
-            var rect = _source.rectTranform.rect;
-            rect = rect.SnappedToPixels();
             vh.Clear();
-            vh.AddVert(rect.xMin, rect.yMin, 0, 0);
-            vh.AddVert(rect.xMin, rect.yMax, 0, 1);
-            vh.AddVert(rect.xMax, rect.yMax, 1, 1);
-            vh.AddVert(rect.xMax, rect.yMin, 1, 0);
-            vh.AddTriangle(0, 1, 2);
-            vh.AddTriangle(0, 2, 3);
+            if (!_source || !_source.texture)
+                return;
+            base.OnPopulateMesh(vh);
         }
 
-        void OnFixupApplyChanged(GraphicToRT graphicToRT) {
-            Assert.IsNotNull(graphicToRT);
-            Assert.AreEqual(_source, graphicToRT);
-            ApplyMaterialProperties();
-        }
-
-        void OnTextureChanged(GraphicToRT graphicToRT) {
-            Assert.IsNotNull(graphicToRT);
-            Assert.AreEqual(_source, graphicToRT);
-            ApplyTexture();
+        void OnTextureChanged(GraphicToRT sender) {
             ApplySize();
+            SetMaterialDirty();
+            SetVerticesDirty();
         }
 
-        void ApplySource() {
-            if (_appliedSource != _source) {
-                if (_appliedSource) {
-                    _appliedSource.fixupAlphaChanged -= OnFixupApplyChanged;
+        void ApplySource() { ApplySource(_source); }
+        void ApplySource(GraphicToRT source) {
+            if (_appliedSource != source) {
+                if (_appliedSource)
                     _appliedSource.textureChanged -= OnTextureChanged;
-                }
-                _appliedSource = _source;
-                if (_appliedSource) {
-                    _appliedSource.fixupAlphaChanged += OnFixupApplyChanged;
+                _appliedSource = source;
+                if (_appliedSource)
                     _appliedSource.textureChanged += OnTextureChanged;
-                }
-                ApplyMaterialProperties();
-                ApplyTexture();
+                SetMaterialDirty();
                 ApplySize();
             }
         }
 
-        void ApplyShader() {
-            if (_appliedShader != _shader) {
-                if (_material)
-                    DestroyMaterial();
-                _appliedShader = _shader;
-                if (_shader)
-                    _material = new Material(_shader) { hideFlags = HideFlags.HideAndDontSave };
+        void ApplyShader() { ApplyShader(shader); }
+        void ApplyShader(Shader shader) {
+            var shouldBeCreated = shader != null;
+            if (!_material && shouldBeCreated
+                    || _material && !shouldBeCreated
+                    || _appliedShader != shader) {
+                if (_material) {
+                    DestroyImmediate(_material);
+                    _material = null;
+                }
+                _appliedShader = shader;
+                if (shader)
+                    _material = new Material(shader).HideAndDontSave();
                 ApplyMaterial();
-                ApplyMaterialProperties();
             }
         }
 
@@ -128,31 +121,9 @@ namespace UIToRenderTarget {
             material = _material;
         }
 
-        void ApplyTexture() {
-            SetMaterialDirty();
-        }
-
         void ApplySize() {
-            if (_source && _rectTransform)
-                _rectTransform.sizeDelta = _source.rectTranform.sizeDelta;
-        }
-
-        void ApplyMaterialProperties() {
-            if (_material && _source)
-                if (_source.fixupAlpha) // GraphicToRT already fixed channels
-                    _material.DisableKeyword(Ids.FIX_ALPHA);
-                else
-                    _material.EnableKeyword(Ids.FIX_ALPHA);
-        }
-        
-        void DestroyMaterial() {
-            DestroyImmediate(_material);
-            _material = null;
-            material = null;
-        }
-
-        static class Ids {
-            public static readonly string FIX_ALPHA = "GRAPHIC_TO_RT_FIX_ALPHA";
+            if (_rectTransform && _source && _source.texture)
+                _rectTransform.sizeDelta = new Vector2(_source.texture.width, _source.texture.height);
         }
     }
 }

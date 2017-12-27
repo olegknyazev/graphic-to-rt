@@ -55,7 +55,6 @@
 			#include "UnityUI.cginc"
 
 			#pragma multi_compile __ UNITY_UI_ALPHACLIP
-			#pragma multi_compile __ GRAPHIC_TO_RT_FIX_ALPHA
 
 			struct appdata_t
 			{
@@ -73,7 +72,6 @@
 			};
 
 			fixed4 _Color;
-			fixed4 _TextureSampleAdd;
 			float4 _ClipRect;
 
 			v2f vert(appdata_t IN)
@@ -96,13 +94,12 @@
 
 			fixed4 frag(v2f IN) : SV_Target
 			{
-				half4 color = (tex2D(_MainTex, IN.texcoord) + _TextureSampleAdd) * IN.color;
+				float4 color = tex2D(_MainTex, IN.texcoord) * IN.color;
 
-				// TODO describe
-			#if GRAPHIC_TO_RT_FIX_ALPHA
+				// By default Unity uses the same blending for alpha as for color. In case
+				// of alpha blending it makes the original pixel alpha be multiplied by itself.
 				color.a = sqrt(color.a);
 				color.rgb /= color.a;
-			#endif
 
 				color.a *= UnityGet2DClipping(IN.worldPosition.xy, _ClipRect);
 
