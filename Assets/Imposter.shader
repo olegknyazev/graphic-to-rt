@@ -72,7 +72,6 @@
 			};
 
 			fixed4 _Color;
-			fixed4 _TextureSampleAdd;
 			float4 _ClipRect;
 
 			v2f vert(appdata_t IN)
@@ -95,7 +94,7 @@
 
 			fixed4 frag(v2f IN) : SV_Target
 			{
-				half4 color = (tex2D(_MainTex, IN.texcoord) + _TextureSampleAdd) * IN.color;
+				float4 color = tex2D(_MainTex, IN.texcoord) * IN.color;
 
 				// By default Unity uses the same blending for alpha as for color. In case
 				// of alpha blending it makes the original pixel alpha be multiplied by itself.
